@@ -267,35 +267,48 @@ func (h *TransactionHandler) DeleteTransaction(w http.ResponseWriter, r *http.Re
 }
 
 func (h *TransactionHandler) GetMonthlyReport(w http.ResponseWriter, r *http.Request) {
-	rows, err := h.db.Query(`
-		SELECT to_char(date, 'YYYY-MM') AS month,
-			SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) AS total_income,
-			SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) AS total_expenses
-		FROM transactions
-		GROUP BY month
-		ORDER BY month DESC`)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
+    // Set response header
+    w.Header().Set("Content-Type", "application/json")
 
-	var reports []models.MonthlyReport
-	for rows.Next() {
-		var r models.MonthlyReport
-		err := rows.Scan(&r.Month, &r.TotalIncome, &r.TotalExpenses)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		r.NetAmount = r.TotalIncome - r.TotalExpenses
-		reports = append(reports, r)
-	}
+    rows, err := h.db.Query(`
+        SELECT 
+            to_char(date, 'YYYY-MM') AS month,
+            COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS total_income,
+            COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS total_expenses
+        FROM transactions
+        GROUP BY to_char(date, 'YYYY-MM')
+        ORDER BY month DESC`)
+    
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    defer rows.Close()
 
-	if err = rows.Err(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+    var reports []models.MonthlyReport
+    for rows.Next() {
+        var r models.MonthlyReport
+        err := rows.Scan(&r.Month, &r.TotalIncome, &r.TotalExpenses)
+        if err != nil {
+            http.Error(w, err.Error(), http.StatusInternalServerError)
+            return
+        }
+        r.NetAmount = r.TotalIncome - r.TotalExpenses
+        reports = append(reports, r)
+    }
 
-	json.NewEncoder(w).Encode(reports)
+    if err = rows.Err(); err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    // If no data, return empty array instead of null
+    if reports == nil {
+        reports = []models.MonthlyReport{}
+    }
+
+    if err := json.NewEncoder(w).Encode(reports); err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
 }

@@ -33,6 +33,9 @@ func main() {
     // Apply CORS middleware to all routes
     r.Use(middleware.CORS)
 
+	r.HandleFunc("/transactions/monthly", transactionHandler.GetMonthlyReport).Methods("GET", "OPTIONS")
+
+
     // Transaction routes
     r.HandleFunc("/transactions", transactionHandler.CreateTransaction).Methods("POST", "OPTIONS")
     r.HandleFunc("/transactions", transactionHandler.GetTransactions).Methods("GET", "OPTIONS")
