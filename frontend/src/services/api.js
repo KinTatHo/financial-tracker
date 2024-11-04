@@ -5,6 +5,11 @@ const defaultHeaders = {
     'Accept': 'application/json',
 };
 
+const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toISOString();
+};
+
 export const api = {
     async createTransaction(data) {
         try {
@@ -38,6 +43,55 @@ export const api = {
                 throw new Error(error || `HTTP error! status: ${response.status}`);
             }
             
+            return response.json();
+        } catch (error) {
+            console.error('API Error:', error);
+            throw error;
+        }
+    },
+
+    async deleteTransaction(id) {
+        try {
+            const response = await fetch(`${API_URL}/transactions/${id}`, {
+                method: 'DELETE',
+                headers: defaultHeaders,
+            });
+
+            if (!response.ok) {
+                const error = await response.text();
+                throw new Error(error || `HTTP error! status: ${response.status}`);
+            }
+
+            if (response.status === 204) {
+                return true;
+            }
+
+            return response.json();
+        } catch (error) {
+            console.error('API Error:', error);
+            throw error;
+        }
+    },
+
+    async updateTransaction(id, data) {
+        try {
+
+            const formattedData = {
+                ...data,
+                date: formatDate(data.date)
+            };
+
+            const response = await fetch(`${API_URL}/transactions/${id}`, {
+                method: 'PUT',
+                headers: defaultHeaders,
+                body: JSON.stringify(formattedData),
+            });
+
+            if (!response.ok) {
+                const error = await response.text();
+                throw new Error(error || `HTTP error! status: ${response.status}`);
+            }
+
             return response.json();
         } catch (error) {
             console.error('API Error:', error);

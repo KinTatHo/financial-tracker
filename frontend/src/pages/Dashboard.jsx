@@ -91,7 +91,6 @@ function Dashboard() {
   };
 
   useEffect(() => {
-    // Fetch data from your API
     api.getTransactions().then((data) => {
       // Calculate summary
       const totals = data.reduce(

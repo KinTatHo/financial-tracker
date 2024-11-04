@@ -1,4 +1,3 @@
-// src/pages/AddTransaction.jsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Notification from "../components/Notification";
@@ -15,7 +14,6 @@ function AddTransaction() {
     date: new Date().toISOString().split("T")[0],
   });
 
-  // Notification states
   const [showNotification, setShowNotification] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState("");
   const [notificationType, setNotificationType] = useState("success");
