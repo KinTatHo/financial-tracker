@@ -25,23 +25,26 @@ function Dashboard() {
   const [expensesByCategory, setExpensesByCategory] = useState([]);
   const [incomeByCategory, setIncomeByCategory] = useState([]);
 
-  const CustomTooltip = ({ active, payload }) => {
+  const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
-      const data = payload[0];
       return (
-        <div className="bg-white p-2 shadow rounded border">
-          <p className="text-sm font-semibold">{data.name}</p>
-          <p className="text-sm">${data.value.toFixed(2)}</p>
-          <p className="text-sm text-gray-500">
-            {(
-              (data.value /
-                (data.payload.type === "expense"
-                  ? summary.totalExpenses
-                  : summary.totalIncome)) *
-              100
-            ).toFixed(1)}
-            %
-          </p>
+        <div className="bg-white p-4 rounded shadow-lg border">
+          <p className="text-gray-600 font-medium mb-2">{label}</p>
+          {payload.map((entry, index) => (
+            <p
+              key={index}
+              style={{ color: entry.color }}
+              className="font-medium"
+            >
+              {entry.name === "income" ? "Income" : "Expenses"}: $
+              {Math.abs(entry.value).toFixed(2)}
+            </p>
+          ))}
+          {payload[0] && payload[1] && (
+            <p className="text-gray-600 border-t mt-2 pt-2">
+              Net: ${(payload[0].value - payload[1].value).toFixed(2)}
+            </p>
+          )}
         </div>
       );
     }
@@ -49,38 +52,45 @@ function Dashboard() {
   };
 
   useEffect(() => {
-    // Fetch monthly report
-    api
-      .getMonthlyReport()
-      .then((data) => {
-        // Process the data
-        const processedData = data.map((item) => ({
-          month: formatMonth(item.month),
-          income: Number(item.total_income),
-          expenses: Number(item.total_expenses),
-          net: Number(item.net_amount),
-        }));
-
-        setMonthlyData(processedData);
-
-        // Calculate summary
-        const latestSummary = processedData.reduce(
-          (acc, curr) => ({
-            totalIncome: acc.totalIncome + curr.income,
-            totalExpenses: acc.totalExpenses + curr.expenses,
-          }),
-          { totalIncome: 0, totalExpenses: 0 }
-        );
-
-        setSummary({
-          ...latestSummary,
-          balance: latestSummary.totalIncome - latestSummary.totalExpenses,
-        });
-      })
-      .catch((error) => {
-        console.error("Error fetching monthly data:", error);
-      });
+    fetchMonthlyData();
   }, []);
+
+  const fetchMonthlyData = async () => {
+    try {
+      setIsLoading(true);
+      const data = await api.getMonthlyReport();
+
+      // Process the data
+      const processedData = data
+        .map((item) => ({
+          month: formatMonth(item.month),
+          income: Number(item.total_income.toFixed(2)),
+          expenses: Number(item.total_expenses.toFixed(2)),
+          net: Number((item.total_income - item.total_expenses).toFixed(2)),
+        }))
+        .reverse(); // Show oldest to newest
+
+      setMonthlyData(processedData);
+
+      // Calculate summary
+      const totals = processedData.reduce(
+        (acc, curr) => ({
+          totalIncome: acc.totalIncome + curr.income,
+          totalExpenses: acc.totalExpenses + curr.expenses,
+        }),
+        { totalIncome: 0, totalExpenses: 0 }
+      );
+
+      setSummary({
+        ...totals,
+        balance: totals.totalIncome - totals.totalExpenses,
+      });
+    } catch (error) {
+      console.error("Error fetching monthly data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const formatMonth = (monthStr) => {
     const [year, month] = monthStr.split("-");
@@ -248,14 +258,40 @@ function Dashboard() {
         </h3>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={monthlyData}>
+            <BarChart
+              data={monthlyData}
+              margin={{
+                top: 20,
+                right: 30,
+                left: 20,
+                bottom: 5,
+              }}
+            >
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip content={<CustomTooltip />} />
+              <XAxis dataKey="month" tick={{ fill: "#6B7280" }} />
+              <YAxis
+                tick={{ fill: "#6B7280" }}
+                tickFormatter={(value) => `$${value}`}
+              />
+              <Tooltip
+                content={<CustomTooltip />}
+                cursor={{ fill: "rgba(0, 0, 0, 0.1)" }}
+              />
               <Legend />
-              <Bar dataKey="income" fill="#10B981" name="Income" />
-              <Bar dataKey="expenses" fill="#EF4444" name="Expenses" />
+              <Bar
+                dataKey="income"
+                name="Income"
+                fill="#10B981"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={50}
+              />
+              <Bar
+                dataKey="expenses"
+                name="Expenses"
+                fill="#EF4444"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={50}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
